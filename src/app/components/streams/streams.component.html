@@ -1,0 +1,8 @@
+<div id="all-streams">
+  <div *ngFor="let stream of streams" id="{{stream.id}}-container" [class]="stream.class" class="stream-container">
+      <div class="stream-name-container">
+          <span class="stream-name">{{stream.name}}</span>
+      </div>
+  </div>
+
+</div>
