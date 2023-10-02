@@ -27,7 +27,8 @@ export class LoginComponent implements OnInit {
       this.alert.error('please fill the name');
       return;
     }
-    const uid = uuid();
+    // const uid = uuid();
+    const uid = 'chom';
     this.repository.createRoom(uid).subscribe(room => {
       this.alert.success('Room Created!');
       this.general.room = room;

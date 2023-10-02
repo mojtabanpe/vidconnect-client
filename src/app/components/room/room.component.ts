@@ -4,9 +4,9 @@ import { GeneralService } from 'src/app/services/general.service';
 import { StreamsComponent } from '../streams/streams.component';
 import { Router } from '@angular/router';
 import { RepositoryService } from 'src/app/services/repository.service';
-import { environment } from 'src/environments/environment.prod';
+import { environment } from 'src/environments/environment';
 import { roomOpts } from 'src/app/consts/room-config';
-import { Participant, Room, RoomEvent } from 'livekit-client';
+import { Participant, RemoteParticipant, Room, RoomEvent } from 'livekit-client';
 import { NgIf } from '@angular/common';
 
 @Component({
@@ -38,19 +38,16 @@ export class RoomComponent implements OnInit {
       this.token = res.access_token;
       this.room = this.general.room = new Room(roomOpts);
       this.room
-      .on(RoomEvent.ParticipantConnected, this.participantConnected.bind(this))
-      // this.room.options.adaptiveStream = roomOpts.adaptiveStream as boolean;
-      // this.room.options.dynacast = roomOpts.dynacast as boolean;
-      // this.room.options.publishDefaults = roomOpts.publishDefaults;
-      // this.room.options.videoCaptureDefaults = roomOpts.videoCaptureDefaults;
-      await this.room?.connect(this.wsUrl, this.token);
+      .on(RoomEvent.ParticipantConnected, this.participantConnected.bind(this));
       this.initialized = true;
+      await this.room?.connect(this.wsUrl, this.token);
+      for (const participant of this.room.participants.values()) {
+        this.participantConnected(participant);
+      }
     })
   }
 
   participantConnected(participant: Participant) {
-    console.log('participant', participant.identity, 'connectedd');
-
     if (participant.identity !== this.room.localParticipant.identity) {
       this.remoteParticipants.push(participant);
     }

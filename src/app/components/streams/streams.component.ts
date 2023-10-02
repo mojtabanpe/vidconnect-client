@@ -41,7 +41,6 @@ export class StreamsComponent implements OnChanges {
    }
 
   ngOnChanges() {
-        
     this.initial();
   }
 
