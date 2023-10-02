@@ -41,7 +41,9 @@ export class StreamsComponent implements OnChanges {
    }
 
   ngOnChanges() {
-    this.initial();
+    setTimeout(() => {
+      this.initial();
+    }, 3000);
   }
 
   async initial(): Promise<void> {
