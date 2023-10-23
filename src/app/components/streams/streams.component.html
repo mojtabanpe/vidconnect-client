@@ -1,7 +1,18 @@
 <div id="all-streams">
-  <div *ngFor="let stream of streams" id="{{stream.id}}-container" [class]="stream.class" class="stream-container">
+  <div *ngFor="let stream of streams" id="{{stream.id}}-container" [class]="stream.class" class="stream-container" (dblclick)="pinStream(stream.id)">
       <div class="stream-name-container">
-          <span class="stream-name">{{stream.name}}</span>
+        <span class="stream-name">{{stream.name}}</span>
+      </div>
+      <div class="stream-tools-container">
+        <span class="stream-tool" *ngIf="stream.isSpeaker">
+          <i id="{{stream.id}}-pin" class="bi bi-pin-fill" (click)="unPin(stream.id)"></i>
+        </span>
+        <span class="stream-tool">
+          <i id="{{stream.id}}-mic" class="bi bi-mic-fill off" (click)="toggleMic(stream.id)"></i>
+        </span>
+        <span class="stream-tool">
+          <i id="{{stream.id}}-camera" class="bi bi-camera-video-fill off" (click)="toggleCamera(stream.id)"></i>
+        </span>
       </div>
   </div>
 </div>

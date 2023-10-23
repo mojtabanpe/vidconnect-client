@@ -11,7 +11,8 @@ interface Stream {
   class: string,
   isMuted: boolean,
   name: string,
-  isSpeaker: boolean
+  isSpeaker: boolean,
+  isSpeaking: boolean
 }
 
 @Component({
@@ -19,7 +20,7 @@ interface Stream {
   templateUrl: './streams.component.html',
   styleUrls: ['./streams.component.css'],
   standalone: true,
-  imports: [NgFor]
+  imports: [NgFor, NgIf]
 })
 export class StreamsComponent implements OnChanges {
   room: Room = this.general.room as Room;
@@ -36,19 +37,21 @@ export class StreamsComponent implements OnChanges {
     .on(RoomEvent.LocalTrackUnpublished, this.handleLocalTrackUnPublished.bind(this))
     .on(RoomEvent.TrackMuted, this.handleTrackMuted.bind(this))
     .on(RoomEvent.TrackUnmuted, this.handleTrackUnmute.bind(this))
-    .on(RoomEvent.ParticipantMetadataChanged, this.handleParticipantMetadataChanged.bind(this))
-    .on(RoomEvent.RoomMetadataChanged, this.handleUpdateRoomMetaData.bind(this));
    }
 
   ngOnChanges() {
     setTimeout(() => {
       this.initial();
-    }, 3000);
+    }, 300);
   }
 
   async initial(): Promise<void> {
-    await this.room!.localParticipant.setCameraEnabled(true);
-    await this.room!.localParticipant.setMicrophoneEnabled(true);
+    await this.room!.localParticipant.setCameraEnabled(true).catch(() => {
+      console.log("camera cant access");  
+    });
+    await this.room!.localParticipant.setMicrophoneEnabled(true).catch(() => {
+      console.log("mic cant access");  
+    });
   }
 
   handleLocalTrackPublished(trackPublication: LocalTrackPublication, localParticipant: LocalParticipant): void {
@@ -58,14 +61,16 @@ export class StreamsComponent implements OnChanges {
       if (trackPublication.source === Track.Source.Camera) {
         this.localStreamId = id;
       }
-      const resolutionClass = this.decideForResolutionClass(localParticipant);
-      this.streams.push({
+      const stream = {
         id,
-        class: resolutionClass, 
+        class: 'd-none', 
         isMuted: this.isMuted,
         name: localParticipant.identity,
-        isSpeaker: localParticipant.isSpeaking
-      });
+        isSpeaker: false,
+        isSpeaking: false
+      };
+      this.streams.push(stream);
+      stream.class = this.decideForResolutionClass(id);
       this.cdrf.detectChanges();
       const element = track.attach();
       element.id = id;
@@ -73,30 +78,29 @@ export class StreamsComponent implements OnChanges {
       setTimeout(() => {
         const elementConatainer = document.getElementById(id + '-container');
         elementConatainer?.appendChild(element);
+        this.toggleCameraView(this.localStreamId);
       }, 0);
     } else {
-      this.isMuted = false;
+      this.toggleMicView();
       const stream = this.streams.find(s => s.id === this.localStreamId);
       if (stream) {
         stream.isMuted = false;
-        stream.class = this.decideForResolutionClass(localParticipant);
       }
     }
   }
 
   handleLocalTrackUnPublished(trackPublication: LocalTrackPublication, localParticipant: LocalParticipant): void {
+    console.log('oomad');
+    
     if (trackPublication.kind === Track.Kind.Video) {
       const index = this.streams.findIndex(s => s.id === this.localStreamId);
+      console.log(index);
+      
       if (index != -1) {
         this.streams.splice(index, 1);
       }   
     } else {
-      this.isMuted = true;
-      const stream = this.streams.find(s => s.id === this.localStreamId);
-      if (stream) {
-        stream.isMuted = true;
-        stream.class = this.decideForResolutionClass(localParticipant);
-      }
+      this.toggleMicView();
     }
   }
 
@@ -128,7 +132,7 @@ export class StreamsComponent implements OnChanges {
       }
     } else {
       if (stream) {
-        stream.isMuted = true;
+        this.toggleMicView(stream.id);
       }
     }
   }
@@ -142,43 +146,20 @@ export class StreamsComponent implements OnChanges {
       }
     } else {
       if (stream) {
-        stream.isMuted = true;
+        this.toggleMicView(stream.id);
       }
     }
   }
 
   handleTrackUnmute(publication: TrackPublication, participant: Participant): void {
+    const stream = this.streams.find(s => s.id.includes(participant.identity + 'video'));
     if (publication.track?.kind === Track.Kind.Video) {
       this.renderVideoTrack(publication.track as RemoteTrack, participant);
-    } else {
-      const stream = this.streams.find(s => s.id.includes(participant.identity + 'video'));
+    } else { 
         if (stream) {
-          stream.isMuted = false;
+          this.toggleMicView(stream.id);
         }
     }
-  }
-
-  handleParticipantMetadataChanged(metadataUnused: string | undefined, participant: RemoteParticipant | LocalParticipant): void {
-    let metadata = JSON.parse(JSON.parse(participant.metadata as string));
-    if (metadata.changedItem === 'isSpeaker' && metadata.isSpeaker === true) {
-      const previousSpeakerStream = this.streams.find(s => s.isSpeaker === true);
-      if (previousSpeakerStream && this.room) {
-        const previousSpeakerParticipant = previousSpeakerStream.id === this.localStreamId ? this.room?.localParticipant :
-                                            this.participants.find(p => p.identity === this.getParticpatntIdentityFromStreamId(previousSpeakerStream.id));
-        if (previousSpeakerParticipant) {
-          previousSpeakerStream.isSpeaker = false;
-          previousSpeakerStream.class = this.decideForResolutionClass(previousSpeakerParticipant);
-        }
-        // const metadata = this.updateMetaData(previousSpeakerParticipant, 'isSpeaker', false);
-        // this.repository.updateParticipantMetadata(this.room.name, participant.identity, JSON.stringify(metadata)).subscribe();
-      }
-      const spekaerStream = this.streams.find(s => s.id.includes(participant.identity));
-      if (spekaerStream) {
-        spekaerStream.isSpeaker = true;
-        spekaerStream.class = this.decideForResolutionClass(participant);
-      }
-    }
-    
   }
 
   handleUpdateRoomMetaData(newMetadata: string): void {
@@ -195,14 +176,17 @@ export class StreamsComponent implements OnChanges {
 
   renderVideoTrack(track: RemoteTrack, participant: Participant): void {
     const id = participant.identity + track.kind + track.sid;
-    const resolutionClass = this.decideForResolutionClass(participant);
-    this.streams.push({
+    
+    const stream: Stream = {
       id,
-      class: resolutionClass,
+      class: 'd-none',
       isMuted: true,
-      name: participant.identity,
-      isSpeaker: participant.isSpeaking
-    });
+      name: ((track.source === Track.Source.ScreenShare) ? 'تصویر اشتراکی ' : '') + participant.name,
+      isSpeaker: false,
+      isSpeaking: false,
+    };
+    this.streams.push(stream);
+    stream.class = this.decideForResolutionClass(id);
     this.cdrf.detectChanges();
     const element = track.attach();
     element.id = id;
@@ -214,12 +198,129 @@ export class StreamsComponent implements OnChanges {
 
   }
 
-  decideForResolutionClass(participant: Participant): string {
-    const stream = this.streams.find(s => s.id.includes(participant.identity));
+  decideForResolutionClass(streamId: string, mode = 'afterAdd'): string {
+    const stream = this.streams.find(s => s.id === streamId);
+    let streamClass = '';
     if (stream?.isSpeaker) {
-      return 'speaker';
+      streamClass = 'speaker';
     } else {
-      return 'normal-user';
+      streamClass = 'normal-user';
+    }
+    streamClass += this.findSecondClass(mode, streamId);
+    return streamClass;
+  }
+
+  findSecondClass(mode: string, streamId: string): string {
+    let streamLength = this.streams.length;
+    if (mode === 'beforeAdd') {
+      streamLength++;
+    }
+
+    this.general.changeStreamsCounter(streamLength);
+    this.changeAllStreamsContainerClass();
+    switch (streamLength) {
+      case 1:
+        this.streams.forEach(stream => {
+          if (stream.class.includes('speaker')) {
+            stream.class = 'speaker alone';
+          } else {
+            if (stream.id !== streamId) {
+              stream.class = 'normal-user alone';
+            }
+          }
+        });
+        return ' alone';
+      case 2:
+        this.streams.forEach(stream => {
+          if (stream.class.includes('speaker')) {
+            stream.class = 'speaker two-person';
+          } else {
+            if (stream.id !== streamId) {
+              stream.class = 'normal-user two-person';
+            }
+          }
+        });
+        return ' two-person';
+      case 3:
+        this.streams.forEach(stream => {
+          if (stream.class.includes('speaker')) {
+            stream.class = 'speaker three-person';
+          } else {
+            if (stream.id !== streamId) {
+              stream.class = 'normal-user three-person';
+            }
+          }
+        });
+        return ' three-person';
+      case 4:
+        this.streams.forEach(stream => {
+          if (stream.class.includes('speaker')) {
+            stream.class = 'speaker four-person';
+          } else {
+            if (stream.id !== streamId) {
+              stream.class = 'normal-user four-person';
+            }
+          }
+        });
+        return ' four-person';
+      case (5):
+      case (6):
+      case (7):
+      case (8):
+        this.streams.forEach(stream => {
+          if (stream.class.includes('speaker')) {
+            stream.class = 'speaker five-to-nine-person';
+          } else {
+            if (stream.id !== streamId) {
+              stream.class = 'normal-user five-to-nine-person';
+            }
+          }
+        });
+        return ' five-to-nine-person';
+      case (9):
+      case (10):
+      case (11):
+      case (12):
+      case (13):
+        this.streams.forEach(stream => {
+          if (stream.class.includes('speaker')) {
+            stream.class = 'speaker nine-to-thirteen-person';
+          } else {
+            if (stream.id !== streamId) {
+              stream.class = 'normal-user nine-to-thirteen-person';
+            }
+          }
+        });
+        return ' nine-to-thirteen-person';
+      case (14):
+      case (15):
+      case (16):
+      case (17):
+      case (18):
+      case (19):
+      case (20):
+      case (21):
+        this.streams.forEach(stream => {
+          if (stream.class.includes('speaker')) {
+            stream.class = 'speaker thirteen-to-21-person';
+          } else {
+            if (stream.id !== streamId) {
+              stream.class = 'normal-user thirteen-to-21-person';
+            }
+          }
+        });
+        return ' thirteen-to-21-person';
+      default:
+        this.streams.forEach(stream => {
+          if (stream.class.includes('speaker')) {
+            stream.class = 'speaker more-than-21-person';
+          } else {
+            if (stream.id !== streamId) {
+              stream.class = 'normal-user more-than-21-person';
+            }
+          }
+        });
+        return ' more-than-21-person';
     }
   }
 
@@ -235,5 +336,91 @@ export class StreamsComponent implements OnChanges {
     return trackId;
   }
 
+  async toggleMic(streamId: string): Promise<void> {
+    if (this.localStreamId !== streamId) {
+      return;
+    }
+    if (this.room.localParticipant.isMicrophoneEnabled) {
+      await this.room.localParticipant.setMicrophoneEnabled(false);
+    } else {
+      await this.room.localParticipant.setMicrophoneEnabled(true);
+    }
+  }
 
+  async toggleCamera(streamId: string): Promise<void> {
+    if (this.localStreamId !== streamId) {
+      return;
+    }
+    if (this.room.localParticipant.isCameraEnabled) {
+      await this.room.localParticipant.setCameraEnabled(false);
+    } else {
+      await this.room.localParticipant.setCameraEnabled(true);
+    }
+  }
+
+  toggleCameraView(streamId: string): void {
+    const cameraElement = document.getElementById(streamId + '-camera');
+    if (cameraElement?.classList.contains('on')) {
+      cameraElement.classList.remove('on');
+      cameraElement.classList.add('off');
+    } else {
+      cameraElement?.classList.remove('off');
+      cameraElement?.classList.add('on');
+    }
+  }
+
+  toggleMicView(streamId: string = this.localStreamId): void {
+    const micElement = document.getElementById(streamId + '-mic');
+    if (micElement?.classList.contains('on')) {
+      micElement.classList.remove('on');
+      micElement.classList.add('off');
+    } else {
+      micElement?.classList.remove('off');
+      micElement?.classList.add('on');
+    }
+  }
+
+  pinStream(streamId: string): void {
+    const previousSpeakerStream = this.streams.find(s => s.isSpeaker === true);
+    if (previousSpeakerStream && this.room) {
+      previousSpeakerStream.isSpeaker = false;
+      previousSpeakerStream.class = this.decideForResolutionClass(previousSpeakerStream.id);
+    }
+
+    const speakerStream = this.getStramById(streamId);
+
+    if (speakerStream) {
+      speakerStream.isSpeaker = true;
+      speakerStream.class = this.decideForResolutionClass(speakerStream.id);
+    }
+  }
+
+  unPin(streamId: string): void {
+    const previousSpeakerStream = this.streams.find(s => s.isSpeaker === true);
+    if (previousSpeakerStream && this.room) {
+      previousSpeakerStream.isSpeaker = false;
+      previousSpeakerStream.class = this.decideForResolutionClass(previousSpeakerStream.id);
+    }
+  }
+  
+  getStramById(streamId: string): Stream | undefined{
+    const stream = this.streams.find(s => s.id === streamId);
+    return stream;
+  }
+
+  changeAllStreamsContainerClass(): void {
+    const streamsContainer = document.getElementById('all-streams');
+    if (streamsContainer) {
+      if (this.streams.length < 14) {
+        streamsContainer.style.gridTemplateColumns = 'repeat(8, 12.5%)';
+        streamsContainer.style.gridTemplateRows = 'repeat(8, 12.5%)';
+      } else if (this.streams.length > 13 && this.streams.length < 22) {
+        streamsContainer.style.gridTemplateColumns = 'repeat(6, 16.66%)';
+        streamsContainer.style.gridTemplateRows = 'repeat(6, 16.66%)';
+      } else if (this.streams.length > 21) {
+        streamsContainer.style.gridTemplateColumns = 'repeat(7, 14.28%)';
+        streamsContainer.style.gridTemplateRows = 'repeat(7, 14.28%)';
+      }
+    }
+  }
 }
