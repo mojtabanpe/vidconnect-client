@@ -8,20 +8,21 @@ import { environment } from 'src/environments/environment';
 import { roomOpts } from 'src/app/consts/room-config';
 import { Participant, RemoteParticipant, Room, RoomEvent } from 'livekit-client';
 import { NgIf } from '@angular/common';
+import { ParticipantsComponent } from '../participants/participants.component';
 
 @Component({
   selector: 'app-room',
   templateUrl: './room.component.html',
   styleUrls: ['./room.component.css'],
   standalone: true,
-  imports: [FormsModule, StreamsComponent, NgIf]
+  imports: [FormsModule, StreamsComponent, ParticipantsComponent, NgIf]
 })
 export class RoomComponent implements OnInit {
   room = this.general.room as Room;
   name = this.general.name;
   token = '';
   wsUrl = environment.ws_url;
-  remoteParticipants: Participant[] = [];
+  remoteParticipants: RemoteParticipant[] = [];
   initialized = false;
   constructor(private general: GeneralService, private router: Router, private repository: RepositoryService) { }
 
@@ -47,10 +48,13 @@ export class RoomComponent implements OnInit {
     })
   }
 
-  participantConnected(participant: Participant) {
+  participantConnected(participant: RemoteParticipant) {
     if (participant.identity !== this.room.localParticipant.identity) {
+      console.log('oomad');
+      
       this.remoteParticipants.push(participant);
     }
+    this.remoteParticipants = [...this.remoteParticipants]
   }
 
 

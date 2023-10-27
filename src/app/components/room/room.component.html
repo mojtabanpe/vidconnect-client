@@ -1,1 +1,8 @@
-<app-streams *ngIf="initialized" [participants]="remoteParticipants"></app-streams>
+<div class="row">
+    <div class="col-9">
+        <app-streams *ngIf="initialized" [participants]="remoteParticipants"></app-streams>
+    </div>
+    <div class="col-3">
+        <app-participants *ngIf="initialized" [participants]="remoteParticipants"></app-participants>
+    </div>
+</div>

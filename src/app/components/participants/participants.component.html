@@ -1,0 +1,57 @@
+<div class="participants-container">
+  <div class="d-flex justify-content-between">
+    <p class="mb-0">Participant ({{participants.length + 1}})</p>
+    <span style="color: rgb(109, 216, 109);">View All</span>
+  </div>
+  <hr>
+  <div class="participant-state">
+    <p class="mb-0">
+      <span>{{localParticipant?.identity}}</span>
+      <span class="you-label">you</span>
+    </p>
+    <div class="states">
+      <div class="state camera-state" [ngClass]="localParticipant?.isCameraEnabled? 'on' : 'off'">
+        <ng-container *ngIf="localParticipant?.isCameraEnabled; else cameraOff">
+          <i class="bi bi-camera-video-fill"></i>
+        </ng-container>
+        <ng-template #cameraOff>
+          <i class="bi bi-camera-video-off-fill"></i>
+        </ng-template>
+      </div>
+      <div class="state mic-state" [ngClass]="localParticipant?.isMicrophoneEnabled? 'on' : 'off'">
+        <ng-container *ngIf="localParticipant?.isMicrophoneEnabled; else micOff">
+          <i class="bi bi-mic-fill"></i>
+        </ng-container>
+        <ng-template #micOff>
+          <i class="bi bi-mic-mute-fill"></i>
+        </ng-template>
+        
+      </div>
+    </div>
+  </div>
+  <ng-container *ngFor="let participant of participants">
+    <div class="participant-state">
+      <p class="mb-0">{{participant.identity}}</p>
+      <div class="states">
+        <div class="state camera-state" [ngClass]="participant.isCameraEnabled? 'on' : 'off'">
+          <ng-container *ngIf="participant.isCameraEnabled; else cameraOff">
+            <i class="bi bi-camera-video-fill"></i>
+          </ng-container>
+          <ng-template #cameraOff>
+            <i class="bi bi-camera-video-off-fill"></i>
+          </ng-template>
+        </div>
+        <div class="state mic-state" [ngClass]="participant.isMicrophoneEnabled? 'on' : 'off'">
+          <ng-container *ngIf="participant.isMicrophoneEnabled; else micOff">
+            <i class="bi bi-mic-fill"></i>
+          </ng-container>
+          <ng-template #micOff>
+            <i class="bi bi-mic-mute-fill"></i>
+          </ng-template>
+          
+        </div>
+      </div>
+    </div>
+  </ng-container>
+  
+</div>

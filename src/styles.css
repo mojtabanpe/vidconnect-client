@@ -1,5 +1,6 @@
 body {
     height: 100vh;
+    background-color: rgb(233, 230, 230);
 }
 .cursor-pointer {
     cursor: pointer;

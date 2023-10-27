@@ -24,7 +24,7 @@ interface Stream {
 })
 export class StreamsComponent implements OnChanges {
   room: Room = this.general.room as Room;
-  @Input() participants: Array<Participant> = [];
+  @Input() participants: Array<RemoteParticipant> = [];
   isMuted = true;
   streams: Array<Stream> = [];
   localStreamId = "";
@@ -90,12 +90,8 @@ export class StreamsComponent implements OnChanges {
   }
 
   handleLocalTrackUnPublished(trackPublication: LocalTrackPublication, localParticipant: LocalParticipant): void {
-    console.log('oomad');
-    
     if (trackPublication.kind === Track.Kind.Video) {
       const index = this.streams.findIndex(s => s.id === this.localStreamId);
-      console.log(index);
-      
       if (index != -1) {
         this.streams.splice(index, 1);
       }   
